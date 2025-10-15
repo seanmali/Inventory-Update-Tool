@@ -8,11 +8,67 @@ import xlrd  # ==1.2.0 for formatting_info=True
 from xlutils.copy import copy as xl_copy
 from xlwt import XFStyle, Font, Alignment, Borders, Pattern
 from tkinter import Tk, filedialog
+import json
+from pathlib import Path
+
+APP_NAME = "Inventory Updater"
+CONFIG_FILE = Path.home() / ".invup_config.json"
+
+def get_desktop_dir():
+    try:
+        import ctypes, ctypes.wintypes as wt
+        _SHGetKnownFolderPath = ctypes.windll.shell32.SHGetKnownFolderPath  # type: ignore
+        _SHGetKnownFolderPath.argtypes = [wt.c_void_p, wt.DWORD, wt.HANDLE, ctypes.POINTER(ctypes.c_wchar_p)]
+        _SHGetKnownFolderPath.restype = wt.HRESULT
+        from uuid import UUID
+        FOLDERID_Desktop = UUID('{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}')
+        pPath = ctypes.c_wchar_p()
+        hr = _SHGetKnownFolderPath(ctypes.byref(ctypes.c_byte.from_buffer_copy(FOLDERID_Desktop.bytes_le)),
+                                   0, 0, ctypes.byref(pPath))
+        if hr == 0 and pPath.value:
+            return Path(pPath.value)
+    except Exception:
+        pass
+    import os
+    home = Path.home()
+    userprofile = Path(os.environ.get("USERPROFILE", str(home)))
+    onedrive = os.environ.get("OneDrive") or os.environ.get("ONEDRIVE")
+    for cand in [home/"Desktop", userprofile/"Desktop", Path(onedrive)/"Desktop" if onedrive else None]:
+        if cand and cand.exists():
+            return cand
+    return home
+
+def ensure_inventory_dir(default_dir: Path) -> Path:
+    inv = default_dir
+    try:
+        if CONFIG_FILE.exists():
+            saved = json.loads(CONFIG_FILE.read_text()).get("inventory_dir")
+            if saved:
+                inv = Path(saved)
+    except Exception:
+        pass
+    if not inv.is_dir():
+        try:
+            from tkinter import Tk, filedialog, messagebox
+            root = Tk(); root.withdraw()
+            messagebox.showinfo(APP_NAME, "Please select your 'Inventory' folder (it may be on OneDrive Desktop).")
+            chosen = filedialog.askdirectory(title="Select 'Inventory' folder")
+            root.destroy()
+            if not chosen:
+                raise FileNotFoundError("No folder selected.")
+            inv = Path(chosen)
+            try:
+                CONFIG_FILE.write_text(json.dumps({"inventory_dir": str(inv)}, indent=2))
+            except Exception:
+                pass
+        except Exception as e:
+            raise FileNotFoundError(f"Inventory folder not found and selection failed: {e}")
+    return inv
 
 # ----------------------------
 # Configuration
 # ----------------------------
-INVENTORY_DIR = os.path.expanduser("~/Desktop/Inventory")
+INVENTORY_DIR = str((get_desktop_dir() / "Inventory"))
 
 QVC_FILE   = "QVC Inventory.xls"
 JCP_FILE   = "JCP Inventory.xls"
@@ -736,6 +792,8 @@ def build_analysis(report, trends, run_date_str):
 # Main
 # ----------------------------
 def main():
+    global INVENTORY_DIR
+    INVENTORY_DIR = str(ensure_inventory_dir(Path(INVENTORY_DIR)))
     if not os.path.isdir(INVENTORY_DIR):
         raise FileNotFoundError(f"Inventory folder missing: {INVENTORY_DIR}")
 

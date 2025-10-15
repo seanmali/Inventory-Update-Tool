@@ -12,28 +12,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install deps
-        run: |
+      - run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install "pyinstaller>=6.4"
-      - name: Build EXE with PyInstaller (bundle all deps)
-        run: >
-          pyinstaller --onefile --windowed
-          --hidden-import=tkinter --hidden-import=tkinter.filedialog
-          --collect-all pandas --collect-all numpy
-          --collect-all xlrd --collect-all xlwt --collect-all xlutils
-          --collect-all xlsxwriter --collect-all openpyxl
-          --name "Inventory Updater" invup.py
+      - run: pyinstaller invup.spec
         shell: powershell
-      - name: Upload artifact (CI build)
-        if: startsWith(github.ref, 'refs/heads/')
+      - if: startsWith(github.ref, 'refs/heads/')
         uses: actions/upload-artifact@v4
         with:
           name: Inventory-Updater-exe
           path: dist/Inventory Updater.exe
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/Inventory Updater.exe

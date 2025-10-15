@@ -12,18 +12,76 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: |
+      - name: Install deps
+        run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install "pyinstaller>=6.4"
-      - run: pyinstaller --clean invup.spec
+
+      # ---------- ONEFOLDER (RECOMMENDED) ----------
+      - name: Build ONEDIR (more reliable with pandas)
+        run: >
+          pyinstaller --onedir
+          --hidden-import=tkinter --hidden-import=tkinter.filedialog
+          --collect-all pandas --collect-all numpy
+          --collect-all xlrd --collect-all xlwt --collect-all xlutils
+          --collect-all xlsxwriter --collect-all openpyxl
+          --name "Inventory Updater" invup.py
         shell: powershell
-      - if: startsWith(github.ref, 'refs/heads/')
+
+      # Zip the onedir folder for easy download
+      - name: Zip ONEDIR output
+        run: |
+          cd dist
+          powershell -Command "Compress-Archive -Path 'Inventory Updater\*' -DestinationPath 'Inventory-Updater-onedir.zip' -Force"
+
+      # ---------- ONEFILE (best effort) ----------
+      - name: Build ONEFILE (may be less reliable)
+        run: >
+          pyinstaller --onefile --windowed
+          --hidden-import=tkinter --hidden-import=tkinter.filedialog
+          --collect-all pandas --collect-all numpy
+          --collect-all xlrd --collect-all xlwt --collect-all xlutils
+          --collect-all xlsxwriter --collect-all openpyxl
+          --name "Inventory Updater" invup.py
+        shell: powershell
+
+      # ---------- ONEFILE CONSOLE (diagnostic) ----------
+      - name: Build ONEFILE console (for debugging)
+        run: >
+          pyinstaller --onefile --console --debug=imports
+          --hidden-import=tkinter --hidden-import=tkinter.filedialog
+          --collect-all pandas --collect-all numpy
+          --collect-all xlrd --collect-all xlwt --collect-all xlutils
+          --collect-all xlsxwriter --collect-all openpyxl
+          --name "Inventory Updater (console)" invup.py
+        shell: powershell
+
+      # Upload artifacts
+      - name: Upload ONEDIR zip
         uses: actions/upload-artifact@v4
         with:
-          name: Inventory-Updater-exe
+          name: Inventory-Updater-onedir
+          path: dist/Inventory-Updater-onedir.zip
+
+      - name: Upload ONEFILE exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: Inventory-Updater-onefile
           path: dist/Inventory Updater.exe
-      - if: startsWith(github.ref, 'refs/tags/')
+
+      - name: Upload ONEFILE console exe (diagnostic)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Inventory-Updater-console
+          path: dist/Inventory Updater (console).exe
+
+      # Release (when tagging like v1.0.2)
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Inventory Updater.exe
+          files: |
+            dist/Inventory-Updater-onedir.zip
+            dist/Inventory Updater.exe
+            dist/Inventory Updater (console).exe

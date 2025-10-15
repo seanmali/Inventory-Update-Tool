@@ -5,9 +5,7 @@ pkgs = ['pandas','numpy','xlrd','xlwt','xlutils','xlsxwriter','openpyxl']
 datas, binaries, hiddenimports = [], [], []
 for p in pkgs:
     d, b, h = collect_all(p)
-    datas += d
-    binaries += b
-    hiddenimports += h
+    datas += d; binaries += b; hiddenimports += h
 
 a = Analysis(
     ['invup.py'],
@@ -15,6 +13,7 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
+    hookspath=['hooks'],
     noarchive=False
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
@@ -25,6 +24,5 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     name='Inventory Updater',
-    console=False,
-    icon=None
+    console=False
 )

@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+build/
+dist/
+*.spec
+.DS_Store
+Thumbs.db
+Inventory Report *.xlsx
+Inventory History.xlsx
+Unmatched SKUs.xlsx
+
+!invup.spec
+*.xls
+*.xlsx
